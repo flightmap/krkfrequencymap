@@ -1,0 +1,167 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>_YOUR_MAP_INSTANCE_ - DC</title>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="This sample shows how to create a heat map which defines the intensity of each data point based on a property." />
+    <meta name="keywords" content="map, gis, API, SDK, heatmap, heat map, heatmaps, heat maps, density, layer, thermatic" />
+    <meta name="author" content="Microsoft Azure Maps" />
+
+    <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css" />
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+
+    <script type='text/javascript'>
+		var chunkIterator_from = 0;
+		var chunkIterator_to = 500000;
+		var increment = 500000;
+		var chunkEnd = 0;
+		var map, datasource;
+		
+		function httpGet(theUrl)
+		{
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+			xmlHttp.send( null );
+			return xmlHttp.responseText;
+		}
+		
+		function httpGetAsync(theUrl, callback)
+		{
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.onreadystatechange = function() { 
+				if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+					callback(xmlHttp.responseText);
+			}
+			xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+			xmlHttp.send(null);
+		}
+		
+		function GetNextChunkedDataForMap()
+		{
+			chunkEnd = httpGet('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/values');
+            minAtt_value = document.getElementById('minAtt').value;
+            maxAtt_value = document.getElementById('maxAtt').value;
+            console.log('chunkIterator_to:' + chunkIterator_to);
+            console.log('chunkEnd:' + chunkEnd);
+            console.log('minAtt_value:' + minAtt_value);
+            console.log('maxAtt_value:' + maxAtt_value);
+            datasource.importDataFromUrl('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/valuesBetween/getChunk?from=' + chunkIterator_from + '&to=' + chunkIterator_to + '&minAtt=' + minAtt_value + '&maxAtt=' + maxAtt_value);
+            chunkIterator_to += increment;
+			chunkIterator_from += increment;
+            //if(chunkIterator_to<=chunkEnd)
+			//setTimeout(GetNextChunkedDataForMap,1000);
+        }
+
+        function GetNextChunkedDataForMapMinAtt()
+        {
+            chunkEnd = httpGet('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/values');
+            minAtt_value = document.getElementById('minAtt').value;
+            console.log('chunkIterator_to:'+chunkIterator_to);
+            console.log('chunkEnd:' + chunkEnd);
+            console.log('minAtt_value:' + minAtt_value);
+            datasource.importDataFromUrl('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/valuesAbove/getChunk?from=' + chunkIterator_from + '&to=' + chunkIterator_to + '&minAtt=' + minAtt_value);
+            chunkIterator_to += increment;
+			chunkIterator_from += increment;
+			//if(chunkIterator_to<=chunkEnd)
+			//setTimeout(GetNextChunkedDataForMap,1000);
+        }
+
+        function GetNextChunkedDataForMapMaxAtt()
+        {
+            chunkEnd = httpGet('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/values');
+            maxAtt_value = document.getElementById('maxAtt').value;
+            console.log('chunkIterator_to:'+chunkIterator_to);
+            console.log('chunkEnd:' + chunkEnd);
+            console.log('maxAtt_value:' + maxAtt_value);
+            datasource.importDataFromUrl('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/valuesBelow/getChunk?from=' + chunkIterator_from + '&to=' + chunkIterator_to + '&maxAtt=' + maxAtt_value);
+            chunkIterator_to += increment;
+			chunkIterator_from += increment;
+			//if(chunkIterator_to<=chunkEnd)
+			//setTimeout(GetNextChunkedDataForMap,1000);
+        }
+
+        function ClearMapLayer()
+        {
+            chunkIterator_from = 0;
+            clearVal_val = document.getElementById('clearVal').value;
+		    chunkIterator_to = clearVal_val;
+		    increment = clearVal_val;
+		    chunkEnd = 0;
+            datasource.clear()
+        }
+        
+        function GetMap() {
+            //Initialize a map instance.
+            map = new atlas.Map('myMap', {
+                //Add your Azure Maps subscription key to the map SDK. Get an Azure Maps key at https://azure.com/maps
+				center: [19.9, 50],
+				zoom: 9,
+				style: 'grayscale_dark',
+                authOptions: {
+                    authType: 'subscriptionKey',
+                    subscriptionKey: '_YOUR_SUBSCRIPTION_AZMAP_KEY_'
+                }
+            });
+            //Wait until the map resources are ready.
+            map.events.add('ready', function () {
+			//Create a data source and add it to the map.
+                datasource = new atlas.source.DataSource();
+                map.sources.add(datasource);
+                //Load a data set of points, in this case earthquake data from the USGS.
+                //datasource.importDataFromUrl('https://_YOUR_MAP_INSTANCE_.azurewebsites.net/api/values/getChunk?from='+chunkIterator_from+'&to='+chunkIterator_to);
+                //Create a heatmap and add it to the map
+                map.layers.add(new atlas.layer.HeatMapLayer(datasource, null, {
+                   		radius: 5,
+						opacity: 0.7,
+						intensity: 0.3,
+						weight: [
+							"interpolate",
+							[
+								"linear"
+							],
+							[
+								"get",
+								"z"
+							],
+							0,
+							0,
+							10000,
+							1
+						],
+                    color: [
+                        'interpolate',
+                        ['linear'],
+                        ['heatmap-density'],
+                        0, 'rgba(33,102,172,0)',
+                        0.2, 'rgb(103,169,207)',
+                        0.4, 'rgb(209,229,240)',
+                        0.6, 'rgb(253,219,199)',
+                        0.8, 'rgb(239,138,98)',
+                        1, 'rgb(178,24,43)'
+                    ]
+                }), 'labels');
+                
+            });
+        }
+    </script>
+</head>
+<body onload="GetMap()">
+	<div><center>
+    <button onclick="GetNextChunkedDataForMap()">Get next chunked data</button><br>
+    <button onclick="GetNextChunkedDataForMapMinAtt()">Get next chunked data with MIN Att</button>
+    <input type="text" name="minAtt" id="minAtt" value="0" title="minAtt" />
+    <button onclick="GetNextChunkedDataForMapMaxAtt()">Get next chunked data with MAX Att</button>
+    <input type="text" name="maxAtt" id="maxAtt" value="6000" title="maxAtt" />
+    <br>
+    <button onclick="ClearMapLayer()">Clear Map</button>
+    Clear val:
+    <input type="text" name="clearVal" id="clearVal" value="100000" title="clearVal" />
+</center></div>
+    <div id="myMap" style="position:relative;width:100%;min-width:600px;height:600px;"></div>
+	
+</body>
+</html>
